@@ -1,0 +1,1 @@
+import{all}from'./db.js';export async function directory(){const[p,u,t]=await Promise.all(['properties','units','tenants'].map(all));return p.map(x=>({...x,units:u.filter(y=>y.propertyId===x.id).map(y=>({...y,tenant:t.find(z=>z.id===y.tenantId)}))}));}

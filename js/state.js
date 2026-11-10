@@ -1,0 +1,1 @@
+export const role=()=>localStorage.getItem('propmanager.role')==='manager'?'manager':'tenant';export const saveRole=value=>localStorage.setItem('propmanager.role',value);export const tenantId=()=>localStorage.getItem('propmanager.tenantId')||'t1';

@@ -1,0 +1,4 @@
+const dbName='propmanager-db';
+export function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(dbName,1);r.onupgradeneeded=()=>['properties','units','tenants','maintenance_tickets'].forEach(n=>{if(!r.result.objectStoreNames.contains(n))r.result.createObjectStore(n,{keyPath:'id'});});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+export async function all(store){const db=await openDB();return new Promise((resolve,reject)=>{const r=db.transaction(store).objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+export async function put(store,item){const db=await openDB();return new Promise((resolve,reject)=>{const r=db.transaction(store,'readwrite').objectStore(store).put(item);r.onsuccess=()=>resolve(item);r.onerror=()=>reject(r.error);});}
