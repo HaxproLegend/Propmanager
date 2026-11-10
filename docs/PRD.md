@@ -1,3 +1,5 @@
-# PropManager PRD
+# PropManager PRD Reference
 
-Submitted PRD v1.2 is the scope source. Keep the submitted PDF in this folder as `PRD.pdf` if you want the source document versioned with the project.
+The submitted PRD v1.2 (4 November 2026) is the scope source. It specifies a front-end-only HTML5, CSS3 and vanilla JavaScript app, with the selected role stored in localStorage and properties, units, tenants and maintenance tickets stored in IndexedDB.
+
+The PDF can be copied here as `PRD.pdf` when it is added to the project repository.
