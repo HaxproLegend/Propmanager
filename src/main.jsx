@@ -65,7 +65,7 @@ function App() {
       </div>
     </header>
 
-    {user ? <Dashboard user={user} request={api} onSignOut={signOut} /> : mode === 'login' || mode === 'register' ? <main className="auth-layout">
+    {user ? <Dashboard user={user} request={api} onUpdateUser={setUser} onSignOut={signOut} /> : mode === 'login' || mode === 'register' ? <main className="auth-layout">
       <section className="auth-story"><div className="eyebrow">A BETTER WAY TO RENT</div><h1>{mode === 'login' ? 'Good to have you back.' : 'Start with a clearer rental experience.'}</h1><p>One trusted place for renters, owners and the brokers who bring them together.</p><div className="story-note"><span className="story-icon">✳</span><span>Find your place. Keep the important details moving.</span></div></section>
       <section className="auth-panel">
         <button className="back-link" onClick={() => go('home')}>← Back to PropManager</button>

@@ -1,5 +1,5 @@
 from backend import app as auth_app
-from backend.tests.conftest import login, post_json, register
+from backend.tests.conftest import login, patch_json, post_json, register
 
 
 def test_health_and_auth_session_lifecycle(client):
@@ -22,6 +22,11 @@ def test_health_and_auth_session_lifecycle(client):
     assert row["token_hash"] != raw_token
 
     assert client.get("/api/auth/me").get_json()["user"]["email"] == "renter@example.test"
+    profile = patch_json(client, "/api/auth/me", {"name": "Updated Renter"})
+    assert profile.status_code == 200
+    assert profile.get_json()["user"]["name"] == "Updated Renter"
+    assert profile.get_json()["user"]["role"] == "renter"
+    assert patch_json(client, "/api/auth/me", {"name": "x"}).status_code == 400
     signed_out = post_json(client, "/api/auth/logout", {})
     assert signed_out.status_code == 200
     assert client.get("/api/auth/me").status_code == 401
@@ -56,6 +61,9 @@ def test_bad_login_is_generic_and_throttled(client):
     sixth = login(client, "owner@example.test", "correct horse battery staple")
     assert sixth.status_code == 429
     assert "owner@example.test" not in sixth.get_json()["error"]
+    unknown_user = login(auth_app.app.test_client(), "missing@example.test", "wrong password here")
+    assert unknown_user.status_code == 401
+    assert unknown_user.get_json() == {"error": fifth.get_json()["error"]}
 
 
 def test_csrf_is_required_for_mutations(client):
