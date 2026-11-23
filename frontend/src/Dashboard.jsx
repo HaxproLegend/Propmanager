@@ -4,7 +4,7 @@ const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
 const date = (seconds) => new Date(seconds * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 const statusClass = (value) => value.toLowerCase().replaceAll(' ', '-');
 
-export default function Dashboard({ user, request, onUpdateUser, onSignOut }) {
+export default function Dashboard({ user, request, onUpdateUser, page }) {
   const [properties, setProperties] = useState([]);
   const [applications, setApplications] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -12,7 +12,6 @@ export default function Dashboard({ user, request, onUpdateUser, onSignOut }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [page, setPage] = useState('workspace');
   const [filter, setFilter] = useState({ status: 'All', priority: 'All', property: 'All', search: '' });
 
   const load = useCallback(async () => {
@@ -44,7 +43,7 @@ export default function Dashboard({ user, request, onUpdateUser, onSignOut }) {
   ).sort((a, b) => priorityRank(b.priority) - priorityRank(a.priority) || a.created_at - b.created_at), [tickets, filter]);
 
   return <main className="dashboard-page">
-    <div className="dashboard-head"><div><div className="eyebrow">PROPMANAGER WORKSPACE · {label(user.role).toUpperCase()}</div><h1>{page === 'profile' ? 'Your profile' : `Good to see you, ${user.name.split(' ')[0]}.`}</h1><p>{page === 'profile' ? 'Manage your account details.' : 'Keep rental details and maintenance moving in one place.'}</p></div><div className="dashboard-head-actions"><button className="button button-light" onClick={() => setPage(page === 'profile' ? 'workspace' : 'profile')}>{page === 'profile' ? 'Back to workspace' : 'Profile'}</button><button className="button button-light" onClick={onSignOut}>Sign out</button></div></div>
+    <div className="dashboard-head"><div><div className="eyebrow">PROPMANAGER WORKSPACE · {label(user.role).toUpperCase()}</div><h1>{page === 'profile' ? 'Your profile' : `Good to see you, ${user.name.split(' ')[0]}.`}</h1><p>{page === 'profile' ? 'Manage your account details.' : 'Keep rental details and maintenance moving in one place.'}</p></div></div>
     {error && <div className="dashboard-alert error" role="alert">{error}</div>}{notice && <div className="dashboard-alert" role="status">{notice}</div>}
     {page === 'profile' ? <Profile user={user} request={request} act={act} busy={busy} onUpdateUser={onUpdateUser} /> : user.role === 'renter' && <Renter user={user} properties={properties} applications={applications} tickets={tickets} request={request} act={act} busy={busy} />}
     {page === 'workspace' && user.role === 'owner' && <Owner properties={properties} applications={applications} tickets={tickets} request={request} act={act} busy={busy} />}

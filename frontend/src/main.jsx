@@ -22,6 +22,7 @@ function getCookie(name) {
 function App() {
   const [user, setUser] = useState(null);
   const [mode, setMode] = useState('home');
+  const [dashboardPage, setDashboardPage] = useState('workspace');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,13 +41,14 @@ function App() {
         method: 'POST', body: JSON.stringify(values),
       });
       setUser(result.user);
+      setDashboardPage('workspace');
       setMode('home');
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   };
   const signOut = async () => {
     try { await api('/api/auth/logout', { method: 'POST', body: '{}' }); } catch {}
-    setUser(null); go('home');
+    setUser(null); setDashboardPage('workspace'); go('home');
   };
 
   return <>
@@ -58,14 +60,14 @@ function App() {
         <a href="#for-owners" onClick={() => go('home')}>For owners</a>
       </nav>
       <div className="header-actions">
-        {user ? <><span className="signed-in">{user.name}</span><button className="button button-light" onClick={signOut}>Sign out</button></> : <>
+        {user ? <><span className="signed-in">{user.name}</span><button className="button button-light" onClick={() => setDashboardPage(dashboardPage === 'profile' ? 'workspace' : 'profile')}>{dashboardPage === 'profile' ? 'Workspace' : 'Profile'}</button><button className="button button-light" onClick={signOut}>Sign out</button></> : <>
           <button className="button button-light" onClick={() => go('login')}>Sign in</button>
           <button className="button button-dark" onClick={() => go('register')}>Create account <span aria-hidden="true">↗</span></button>
         </>}
       </div>
     </header>
 
-    {user ? <Dashboard user={user} request={api} onUpdateUser={setUser} onSignOut={signOut} /> : mode === 'login' || mode === 'register' ? <main className="auth-layout">
+    {user ? <Dashboard user={user} request={api} onUpdateUser={setUser} page={dashboardPage} /> : mode === 'login' || mode === 'register' ? <main className="auth-layout">
       <section className="auth-story"><div className="eyebrow">A BETTER WAY TO RENT</div><h1>{mode === 'login' ? 'Good to have you back.' : 'Start with a clearer rental experience.'}</h1><p>One trusted place for renters, owners and the brokers who bring them together.</p><div className="story-note"><span className="story-icon">✳</span><span>Find your place. Keep the important details moving.</span></div></section>
       <section className="auth-panel">
         <button className="back-link" onClick={() => go('home')}>← Back to PropManager</button>
@@ -80,7 +82,6 @@ function App() {
           <button className="button button-dark submit-button" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'} <span aria-hidden="true">→</span></button>
         </form>
         <p className="switch-mode">{mode === 'login' ? 'New to PropManager?' : 'Already have an account?'} <button onClick={() => go(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Create an account' : 'Sign in'}</button></p>
-        <p className="security-note"><span>▣</span> Your password is securely hashed and never stored as readable text.</p>
       </section>
     </main> : <Landing onAction={go} />}
 
