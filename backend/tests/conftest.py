@@ -6,6 +6,8 @@ from backend import app as auth_app
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_app, "DATABASE", tmp_path / "test-propmanager.sqlite3")
+    # The test client talks plain HTTP; production defaults to secure cookies.
+    monkeypatch.setattr(auth_app, "COOKIE_SECURE", False)
     auth_app._initialized_database = None
     auth_app.app.config.update(TESTING=True)
     auth_app.init_db()

@@ -1,6 +1,6 @@
 # PropManager
 
-PropManager is a broker-supported rental service prototype. It has a public landing page, server-backed renter/owner/broker accounts, rental listings and applications, broker-coordinated issue tickets, and a manual placement commission ledger.
+PropManager is a broker-supported rental service prototype with a B2C rental journey and a B2B brokerage workspace. It has a public landing page, server-backed renter/owner/broker accounts, searchable stock-image listings with unit inventory, applications with status timelines, broker-coordinated issue tickets with a visual priority queue, in-app notifications, a manual commission ledger, and organization portfolios with teams, invitations, per-organization commission terms, owner leads and CSV exports. A separate Analytics tab gives minimal charts plus detailed raw-number tables, and a navigation assistant opens screens or named records from plain-language requests. A `seed-demo` command loads realistic sample users, rentals, problems and an organization for presentations.
 
 ## Project layout
 
@@ -8,15 +8,24 @@ PropManager is a broker-supported rental service prototype. It has a public land
 Propmanager/
 ├── backend/                 Flask API, SQLite setup, and pytest suite
 ├── frontend/                React/Vite application
-│   ├── src/                  Active landing, authentication, and workspace UI
+│   ├── src/                  Active workspace UI
+│   │   ├── main.jsx            Auth, landing page, toasts and app entry
+│   │   ├── Analytics.jsx       Charts, trends and detailed tables
+│   │   ├── Assistant.jsx       Plain-language navigation assistant
+│   │   ├── AppShell.jsx        Sidebar, topbar, notifications, quick navigation
+│   │   ├── Dashboard.jsx       Role pages and data orchestration
+│   │   ├── Listings.jsx        Search, stock-image cards and detail drawer
+│   │   ├── BrokerQueue.jsx     Priority list and Kanban board
+│   │   ├── Organizations.jsx   Portfolio health, teams, terms and leads
+│   │   └── ui.jsx              Shared primitives (badges, drawer, timeline, toasts)
 │   ├── legacy/               Original vanilla JS/CSS prototype kept for reference
 │   ├── index.html            Vite entry page
 │   ├── package.json          Frontend dependencies and scripts
 │   └── vite.config.js        Local `/api` proxy
-├── docs/                     API reference, PRD, wireframes, and feature notes
+├── docs/                     API reference, PRD, wireframes, deployment and backup notes
 ├── .github/                  Backend CI workflow
 ├── .env.example              Local Flask environment template
-├── vercel.json               Frontend build settings and hosted API rewrite
+├── vercel.mjs                Frontend build settings and configurable hosted API rewrite
 └── README.md
 ```
 
@@ -40,7 +49,7 @@ Requirements: Node.js 20.19+ (or 22.12+) and Python 3.10+.
    python -m pip install -r backend/requirements-dev.txt
    ```
 
-3. Copy `.env.example` to `.env`. For local HTTP development, keep `COOKIE_SECURE=false`.
+3. Copy `.env.example` to `.env`. For local HTTP development, change `COOKIE_SECURE` to `false`; the default is `true` for hosted HTTPS deployments.
 4. From the repository root, start Flask:
 
    ```sh
@@ -48,6 +57,7 @@ Requirements: Node.js 20.19+ (or 22.12+) and Python 3.10+.
    ```
 
 5. Open the Vite address shown in the frontend terminal (usually `http://localhost:5173`). Vite forwards `/api` requests to the local Flask API at `http://127.0.0.1:5000` by default. To use another API during frontend development, set `VITE_API_PROXY_TARGET` in `frontend/.env.local`.
+6. For a populated demo, run `python -m flask --app backend.app seed-demo` from the repository root. This creates five sample accounts, eight stock-image listings with unit inventory, accepted rentals, applications in every state, realistic renter issues, notifications and commission entries. Use `seed-demo --reset` to recreate it.
 
 The SQLite database is created at `backend/instance/propmanager.sqlite3` when Flask starts. It contains account records, Argon2id password hashes, hashed session tokens, listings, applications, ticket records, and commission records. The local database is ignored by Git.
 
@@ -69,19 +79,25 @@ Broker privilege is never offered by public registration. Renter and owner accou
 
 ## Demo flow
 
-1. Create an owner account and publish a home listing.
-2. Create a renter account in a separate browser profile, browse the listing, and apply.
-3. Sign in as the owner and accept the application.
-4. Sign in as a broker created with the CLI. Record a manual placement fee for the accepted application.
-5. Sign back in as the renter, submit an issue request for the accepted home, then use the broker view to filter, search, add a note, and move the ticket through its lifecycle.
+Run `seed-demo`, then sign in with any of these accounts. The password for all demo accounts is `DemoPass123!`.
 
-The commission is a manually entered ledger amount. Its business formula and any real payment collection are intentionally undecided.
+| Role | Email | What to look at |
+| --- | --- | --- |
+| Broker | `broker@propmanager.demo` | Priority queue with ranked issues, similar-report and resident counts, board view, bulk actions, full commission ledger, all organization portfolios |
+| Owner | `owner@propmanager.demo` | Three property types, unit inventory, pending applications to accept, owner-side ledger, and the Northstar organization workspace |
+| Renter A | `renter-a@propmanager.demo` | Accepted apartment rental, two reported issues with history, renter ledger, pending second application |
+| Renter B | `renter-b@propmanager.demo` | PG room, urgent Personal Safety issue, declined application |
+| Renter C | `renter-c@propmanager.demo` | Two active rentals, matching plumbing reports with Renter B, skipped issue with a reason |
+
+A short walkthrough: sign in as the owner and accept the pending application; open **Organizations** to see portfolio health, the 9% owner term, an invitation and five leads; sign in as the broker and move the urgent issue to In Progress from the priority queue; sign in as Renter A and open the application timeline, issue history and ledger. The full script is in [docs/FEATURE_SCRIPT.md](docs/FEATURE_SCRIPT.md).
+
+The commission is a ledger of obligations only. Its business formula and any real payment collection are intentionally undecided.
 
 ## Authentication in this version
 
 - Passwords are hashed with Argon2id; this is one-way hashing, not reversible encryption. Use HTTPS/TLS when hosted to protect credentials in transit; SQLite disk encryption is not configured.
 - The server issues random opaque session tokens, stores only their SHA-256 hashes, checks them on each signed-in request, and removes a token on sign-out.
-- Session cookies are `HttpOnly` and `SameSite=Lax`; `COOKIE_SECURE=true` must be used behind HTTPS in deployment.
+- Session cookies are `HttpOnly` and `SameSite=Lax`; `COOKIE_SECURE` defaults to `true` and must stay `true` behind HTTPS. Use `false` only for local HTTP development.
 - State-changing auth requests use a CSRF token. Sign-in failures are throttled after repeated attempts.
 - Roles come from the server account record. The browser cannot grant itself broker access.
 
@@ -89,10 +105,22 @@ Use HTTPS in any shared or production deployment. `COOKIE_SECURE=false` is only 
 
 ## Deployment
 
-Vercel is configured in the repository-root `vercel.json` to install and build the app from `frontend/`, publish `frontend/dist`, and forward `/api/*` requests to the Flask API. Keep the Vercel project root set to the repository root.
+Vercel is configured in the repository-root `vercel.mjs` to install and build the app from `frontend/`, publish `frontend/dist`, and forward `/api/*` requests to the Flask API. Keep the Vercel project root set to the repository root. Set the Vercel environment variable `API_ORIGIN` to your API host origin (no trailing slash or `/api`); it replaces the hard-coded demo host. The full checklist is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Backup and restore
+
+The SQLite database can be backed up consistently while the app is running:
+
+```sh
+python -m flask --app backend.app backup
+python -m flask --app backend.app backup --output /secure/path/propmanager-backup.sqlite3
+python -m flask --app backend.app restore /secure/path/propmanager-backup.sqlite3 --yes
+```
+
+Backups are integrity-checked before a restore replaces the live database. Schedule them on the API host, keep copies off-host, encrypt them, and test restores. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the operational details.
 
 ## Scope notes
 
-Each owner can manage multiple listings, and a renter may have application and maintenance records for multiple accepted rentals. The signed-in Profile view shows the account role and email and lets the user update their display name; role and email stay read-only.
+Each owner can manage multiple listings with unit-level inventory, and a renter may have application and maintenance records for multiple accepted rentals. The app shell keeps role-aware navigation, notifications and quick search available everywhere. Listings support keyword/location/type/rent/availability filters and a detail drawer with stock photos and unit selection. Applications and issues have visible timelines, and brokers must supply a reason before marking an issue Skipped. The priority queue is decision support only: importance, elapsed time, similar reports and distinct residents are shown, but the broker decides. The Analytics tab keeps charts minimal by default with detailed tables behind a toggle, and the assistant is a local rule-based navigator — it opens screens and named records but does not call an external AI service.
 
-The Flask backend is the working local MVP for the agreed flows, not a production identity or payments platform. Email verification, password reset, MFA, external payment collection, database backup, and hosted deployment still need separate work.
+The Flask backend is the working local MVP for the agreed flows, not a production identity or payments platform. Backup commands and deployment configuration are provided, but the operator still needs to schedule backups, set `API_ORIGIN`/`COOKIE_SECURE` correctly, and arrange monitoring. Basic organization portfolios are implemented, but organization-level isolation, multiple broker teams and per-organization administrator consoles remain later work. Email verification, password reset, MFA, external payment collection and database-at-rest encryption are still future work.

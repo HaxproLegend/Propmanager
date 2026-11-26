@@ -146,7 +146,7 @@ The accompanying low-fidelity wireframe is `PropManager-Brokerage-Wireframe.svg`
 
 ## 8. Data and persistence overview
 
-Core records include users, properties, applications/rentals, issues, issue history, and commission ledger cycles. A property belongs to an owner; an application links a renter to a property; an accepted application represents an active rental; issues relate to that rental; commission cycles relate to the rental, billing month, and charged party.
+Core records include users, properties, units, applications/rentals, application history, issues, issue history, notifications, and commission ledger cycles. A property belongs to an owner and holds one or more units; an application links a renter to a property and, on acceptance, to a unit; an accepted application represents an active rental; issues relate to that rental; commission cycles relate to the rental, billing month, and charged party.
 
 The current implementation uses Flask APIs and SQLite persistence. The client uses React and Vite. Database migrations must preserve existing records when fields are added. The commission-cycle generator must be idempotent for a rental, month, and party.
 
@@ -185,7 +185,7 @@ These are excluded from the MVP unless the core acceptance criteria are complete
 - Application/rental timeline and richer resident-visible issue history.
 - Notifications, comments, image attachments, vendor assignment, repair cost tracking, and service-level deadlines.
 - CSV/PDF reporting and operational analytics.
-- Organization accounts and building portfolios for PG operators or office-building businesses; multi-user broker teams and organization-level RBAC.
+- ~~Organization accounts and building portfolios for PG operators or office-building businesses; multi-user broker teams and organization-level RBAC.~~ **Phase 2 (basic):** organizations, members, invitations, linked properties and per-organization commission terms are implemented. Full tenant isolation, multiple broker teams and organization-level administrator consoles remain later work.
 - Payment gateway integration and automated commission collection, after legal and payment decisions.
 - Accessibility preferences, language support, installable/offline mode, and additional deployment hardening.
 
@@ -200,6 +200,9 @@ These are excluded from the MVP unless the core acceptance criteria are complete
 | B2B growth could require organization-level isolation | Keep current single-broker dashboard simple; make organization and multi-broker support a later design decision. |
 | Monthly commission generation needs reliable scheduling in deployment | Use an idempotent monthly job; local demo can invoke the generator manually or open the broker ledger for catch-up. |
 | Database file encryption at rest is not configured | Do not claim it is implemented; decide and configure it before storing sensitive production data. |
+| SQLite backups and hosted deployment | Use the `backup`/`restore` Flask CLI commands (online backup API, integrity-checked restore); schedule backups off-host and test restores. `vercel.mjs` takes the API origin from `API_ORIGIN`; cookies default to `COOKIE_SECURE=true`. See `docs/DEPLOYMENT.md`. |
+| Demo data in a shared database | `seed-demo` is idempotent, identifiable by `@propmanager.demo` emails, and refuses hosted databases unless `--force` is given. It is for local presentations only. |
+| Organization isolation | Phase 2 adds organization roles and member-scoped reads, but linked properties are visible through existing global listings APIs. True row-level tenancy and multi-broker team isolation require a later data-model change. |
 
 ## 13. Legal and approval note
 

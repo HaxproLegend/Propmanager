@@ -68,7 +68,9 @@ def test_monthly_commissions_are_generated_for_both_parties_and_stop_after_renta
     again = post_json(broker, "/api/commissions/generate", {"billing_period": current_period})
     assert again.status_code == 201 and again.get_json()["created"] == 0
     assert post_json(broker, "/api/commissions/generate", {"billing_period": "bad"}).status_code == 400
-    assert owner.get("/api/commissions").status_code == 403
+    assert owner.get("/api/commissions").status_code == 200
+    assert {row["party"] for row in owner.get("/api/commissions").get_json()["commissions"]} == {"owner"}
+    assert {row["party"] for row in renter.get("/api/commissions").get_json()["commissions"]} == {"renter"}
 
     for row in records:
         assert patch_json(broker, f"/api/commissions/{row['id']}", {"status": "Paid"}).get_json()["status"] == "Paid"
@@ -80,7 +82,7 @@ def test_monthly_commissions_are_generated_for_both_parties_and_stop_after_renta
     stopped = post_json(broker, "/api/commissions/generate", {"billing_period": next_period})
     assert stopped.get_json()["created"] == 0
     assert broker.get("/api/commissions").status_code == 200
-    assert owner.get("/api/commissions").status_code == 403
+    assert owner.get("/api/commissions").status_code == 200
 
 
 def test_maintenance_ticket_access_lifecycle_filters_and_notes(client):
@@ -184,3 +186,114 @@ def test_one_owner_and_renter_can_have_multiple_properties(client):
     assert len(renter.get("/api/applications").get_json()["applications"]) == 2
     assert len(renter.get("/api/tickets").get_json()["tickets"]) == 2
     assert renter.get("/api/dashboard").get_json()["summary"]["open_tickets"] == 2
+
+
+def test_skipped_ticket_requires_a_visible_reason(client):
+    owner = client
+    renter = auth_app.app.test_client()
+    broker = auth_app.app.test_client()
+    register(owner, "owner@example.test", "owner")
+    register(renter, "renter@example.test")
+    create_broker()
+    login(broker, "broker@example.test")
+
+    property_id = post_json(owner, "/api/properties", {
+        "title": "Garden Flat", "address": "12 Park Road, Pune", "monthly_rent": 28000,
+    }).get_json()["property"]["id"]
+    application_id = post_json(renter, "/api/applications", {"property_id": property_id}).get_json()["id"]
+    post_json(owner, f"/api/applications/{application_id}/decision", {"status": "Accepted"})
+    ticket_id = post_json(renter, "/api/tickets", {
+        "property_id": property_id, "title": "Broken latch", "description": "The front gate latch is broken",
+        "category": "Security/access", "priority": "High",
+    }).get_json()["id"]
+
+    missing_reason = patch_json(broker, f"/api/tickets/{ticket_id}", {"status": "Skipped", "manager_note": ""})
+    assert missing_reason.status_code == 400
+    assert "reason" in missing_reason.get_json()["error"].lower()
+    assert renter.get(f"/api/tickets/{ticket_id}").get_json()["ticket"]["status"] == "Pending"
+
+    skipped = patch_json(broker, f"/api/tickets/{ticket_id}", {
+        "status": "Skipped", "manager_note": "Owner handled this directly.",
+    })
+    assert skipped.status_code == 200
+    history = renter.get(f"/api/tickets/{ticket_id}").get_json()["history"]
+    assert history[-1]["new_status"] == "Skipped"
+    assert history[-1]["note"] == "Owner handled this directly."
+
+
+def test_similar_reports_count_distinct_reporting_residents(client):
+    owner = client
+    renter_one = auth_app.app.test_client()
+    renter_two = auth_app.app.test_client()
+    broker = auth_app.app.test_client()
+    register(owner, "owner@example.test", "owner")
+    register(renter_one, "one@example.test", name="Renter One")
+    register(renter_two, "two@example.test", name="Renter Two")
+    create_broker()
+    login(broker, "broker@example.test")
+
+    property_id = post_json(owner, "/api/properties", {
+        "title": "Garden Flat", "address": "12 Park Road, Pune", "monthly_rent": 28000,
+        "unit_count": 2,
+    }).get_json()["property"]["id"]
+    for renter in (renter_one, renter_two):
+        post_json(renter, "/api/applications", {"property_id": property_id})
+
+    for renter in (renter_one, renter_two):
+        application_id = next(
+            row["id"] for row in renter.get("/api/applications").get_json()["applications"]
+            if row["property_id"] == property_id
+        )
+        assert post_json(owner, f"/api/applications/{application_id}/decision", {"status": "Accepted"}).status_code == 200
+
+    for renter, title in ((renter_one, "Leaking tap"), (renter_two, "Dripping pipe")):
+        assert post_json(renter, "/api/tickets", {
+            "property_id": property_id, "title": title, "description": "Water is leaking all day",
+            "category": "Plumbing", "priority": "High",
+        }).status_code == 201
+
+    tickets = broker.get("/api/tickets").get_json()["tickets"]
+    assert len(tickets) == 2
+    assert {row["similar_issue_count"] for row in tickets} == {1}
+    assert {row["similar_resident_count"] for row in tickets} == {1}
+    detail = renter_one.get(f"/api/tickets/{tickets[0]['id']}").get_json()["ticket"]
+    assert detail["similar_resident_count"] == 1
+
+
+def test_broker_dashboard_returns_all_ticket_status_counts(client):
+    owner = client
+    renter = auth_app.app.test_client()
+    broker = auth_app.app.test_client()
+    register(owner, "owner@example.test", "owner")
+    register(renter, "renter@example.test")
+    create_broker()
+    login(broker, "broker@example.test")
+
+    property_id = post_json(owner, "/api/properties", {
+        "title": "Garden Flat", "address": "12 Park Road, Pune", "monthly_rent": 28000,
+    }).get_json()["property"]["id"]
+    application_id = post_json(renter, "/api/applications", {"property_id": property_id}).get_json()["id"]
+    post_json(owner, f"/api/applications/{application_id}/decision", {"status": "Accepted"})
+    ticket_ids = []
+    for number in range(4):
+        ticket_ids.append(post_json(renter, "/api/tickets", {
+            "property_id": property_id, "title": f"Issue {number}", "description": "Something needs attention",
+        }).get_json()["id"])
+
+    for ticket_id, status, note in (
+        (ticket_ids[1], "In Progress", ""),
+        (ticket_ids[2], "Resolved", ""),
+        (ticket_ids[3], "Skipped", "Not a brokerage issue."),
+    ):
+        assert patch_json(broker, f"/api/tickets/{ticket_id}", {
+            "status": status, "manager_note": note,
+        }).status_code == 200
+
+    summary = broker.get("/api/dashboard").get_json()["summary"]
+    assert summary["properties"] == 1
+    assert summary["active_rentals"] == 1
+    assert summary["pending_applications"] == 0
+    assert summary["pending_tickets"] == 1
+    assert summary["in_progress_tickets"] == 1
+    assert summary["resolved_tickets"] == 1
+    assert summary["skipped_tickets"] == 1
