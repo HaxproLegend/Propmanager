@@ -4,6 +4,7 @@ import Assistant from './Assistant.jsx';
 import BrokerQueue from './BrokerQueue.jsx';
 import ListingExplorer, { CompactListingGrid } from './Listings.jsx';
 import Organizations from './Organizations.jsx';
+import Policy from './Policy.jsx';
 import { ApplicationEventLabel, Badge, Drawer, Empty, SectionTitle, Skeleton, Stats, Timeline, date, dateTime, label, money } from './ui.jsx';
 
 export default function Dashboard({ user, request, page, setPage, notify, onChanged, onUpdateUser }) {
@@ -104,6 +105,8 @@ export default function Dashboard({ user, request, page, setPage, notify, onChan
 
     {page === 'organizations' && <Organizations user={user} request={request} act={act} busy={busy} notify={notify} properties={properties} />}
 
+    {page === 'policy' && <Policy />}
+
     <Drawer open={Boolean(detailId)} onClose={() => { setDetailId(null); setDetail(null); }} title={detail?.application?.property_title || 'Application'} sub={detail?.application ? `${detail.application.status} · ${money(detail.application.monthly_rent)} / month` : ''} wide>
       {detail && <>
         <div className="detail-meta"><Badge value={detail.application.status} />{detail.application.unit_label && <span>Unit: {detail.application.unit_label}</span>}<span>Applied {date(detail.application.created_at)}</span></div>
@@ -148,11 +151,12 @@ function Profile({ user, request, act, busy, onUpdateUser }) {
 function ApplicationsPage({ applications, user, request, act, busy, onOpen }) {
   return <section className="dash-section"><SectionTitle title="Applications" sub="Track decisions and rental history in one timeline." />
     {applications.length ? <div className="list-table">{applications.map((row) => <div className="data-row application-row" key={row.id}>
-      <div><strong>{row.property_title}</strong><small>{money(row.monthly_rent)} / month · applied {date(row.created_at)}{row.unit_label ? ` · ${row.unit_label}` : ''}</small>{row.message && <p>{row.message}</p>}</div>
+      <div><strong>{row.property_title}</strong><small>{money(row.monthly_rent)} / month · applied {date(row.created_at)}{row.unit_label ? ` · ${row.unit_label}` : ''}</small>{row.message && <p>{row.message}</p>}{row.decline_reason && <p className="decline-reason">Reason: {row.decline_reason}</p>}</div>
       <div className="row-actions"><Badge value={row.status} /><button className="button button-light" onClick={() => onOpen(row.id)}>Timeline</button>
         {user.role === 'owner' && row.status === 'Pending' && <>
           <button className="button button-dark" disabled={busy} onClick={() => act(() => request(`/api/applications/${row.id}/decision`, { method: 'POST', body: JSON.stringify({ status: 'Accepted' }) }), 'Application accepted.')}>Accept</button>
-          <button className="button button-light" disabled={busy} onClick={() => act(() => request(`/api/applications/${row.id}/decision`, { method: 'POST', body: JSON.stringify({ status: 'Declined' }) }), 'Application declined.')}>Decline</button>
+          <input aria-label="Reason for decline" className="decline-input" maxLength="500" id={`decline-${row.id}`} placeholder="Reason (shared with renter)" />
+          <button className="button button-light" disabled={busy} onClick={() => { const reason = document.getElementById(`decline-${row.id}`)?.value || ''; act(() => request(`/api/applications/${row.id}/decision`, { method: 'POST', body: JSON.stringify({ status: 'Declined', reason }) }), 'Application declined.'); }}>Decline</button>
         </>}
         {(user.role === 'owner' || user.role === 'broker') && row.status === 'Accepted' && <button className="button button-light" disabled={busy} onClick={() => act(() => request(`/api/applications/${row.id}/end`, { method: 'POST', body: JSON.stringify({ reason: 'Rental ended from the workspace.' }) }), 'Rental ended.')}>End rental</button>}
       </div>

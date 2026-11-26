@@ -206,4 +206,67 @@ These are excluded from the MVP unless the core acceptance criteria are complete
 
 ## 13. Legal and approval note
 
-This revised PRD supersedes the product scope described in submitted PRD v1.2 only after mentor/team approval. The submitted document remains a record of the original OJT proposal. The team will provide tenant-benefit and lease clause wording later; until then this PRD intentionally contains no invented legal clauses.
+This revised PRD supersedes the product scope described in submitted PRD v1.2 only after mentor/team approval. The submitted document remains a record of the original OJT proposal. The team will provide tenant-benefit and lease clause wording later; until then this PRD intentionally contains no invented legal clauses. The product's internal posture is recorded in `docs/LEGAL_APPROACH.md`; it is not customer-facing legal text.
+
+## 14. Implementation status and roadmap
+
+This section is a living status record, not a change to the requirements above. It explains what has been built, what is deliberately deferred, and the next phase.
+
+### Phase 0 — Foundation (complete)
+
+- Flask JSON API, SQLite with idempotent migrations, React/Vite frontend and pytest suite with GitHub Actions CI.
+- Renter/owner registration, provisioned broker accounts, Argon2id password hashes, hashed opaque server-side sessions, HttpOnly/SameSite cookies, CSRF on mutations and login throttling.
+- Role-scoped APIs, `COOKIE_SECURE` secure-by-default, configurable Vercel API rewrite via `vercel.mjs`, and `backup`/`restore` CLI commands.
+- Documentation: API reference, wireframes, feature script, deployment/backup notes and this PRD.
+
+### Phase 1 — B2C completeness and demo polish (complete)
+
+- Listing search/filters (`q`, location, type, rent, availability), stock images with graceful fallback and a detail drawer with unit-level inventory.
+- Units per property: accepting an application assigns an available unit and multiple renters can hold active rentals at one multi-unit property; ending a rental frees the unit.
+- Application timelines (`application_events`) and notification timelines (`ticket_events`), plus in-app notifications with read/read-all endpoints.
+- Broker issue visualization: ranked priority list, Kanban board, saved views, filters, bulk status changes and visible decision factors. No numeric score or automated decision.
+- Responsive app shell with sidebar, topbar, quick navigation, notification bell and mobile nav; shared design tokens, toasts, skeletons, drawers and timeline primitives while keeping the original green/cream theme.
+- `seed-demo` CLI: five personas, eight stock-image listings, units, rentals, applications in every state, realistic renter problems, notifications and two months of commission entries.
+- Must-have PRD gaps closed: Skipped reasons enforced, distinct-resident counts exposed, renter/owner ledger visibility, resident-visible issue history and complete broker dashboard counts.
+
+### Phase 2 — B2B foundation, insight and navigation (complete)
+
+- Organizations with member roles (`org_admin`, `manager`, `broker`, `accountant`, `technician`), expiring invitations, member management and linked properties.
+- Per-organization commission terms in basis points with effective dates; the generator uses the active org rate and unlinked properties keep the 10% default.
+- Owner/tenant leads with a status workflow, portfolio health dashboard and CSV exports with formula-injection escaping.
+- Separate Analytics tab: role-scoped KPIs, CSS/SVG charts and an optional detailed raw-number table. Minimal by default, detailed on demand.
+- Plain-language navigation assistant: local rule-based intent matching that opens screens or named property/application/issue records. No external AI service or API keys.
+- Landing page proof points: role/feature comparison, demo numbers and an illustrative activity snapshot. Sign-in is consolidated to the top corner; the hero keeps a single Get started CTA.
+- Plain-language `How we handle issues & applications` page and internal `docs/LEGAL_APPROACH.md`; optional decline reasons on applications and an acknowledgement checkbox before applying.
+
+### Requirement coverage at a glance
+
+| PRD area | Status |
+| --- | --- |
+| FR-01 to FR-06 — accounts, auth, profile, HTTPS posture | Implemented |
+| FR-07 to FR-12 — properties, types, units, discovery and filters | Implemented |
+| FR-13 to FR-17 — applications, decisions, timelines, ending rentals | Implemented |
+| FR-18 to FR-25 — issues, categories, queue, reasons, visible history | Implemented |
+| FR-26 to FR-30 — commission ledger, rates, idempotency, no payments | Implemented |
+| FR-31 to FR-36 — role-aware dashboard and API authorization | Implemented |
+| Organization roles, team invitations, leads, per-org rates, exports | Implemented beyond original MVP scope (Phase 2) |
+| Notifications by email/SMS/WhatsApp | Deferred; in-app only |
+| Payments, legal documents, organization-level isolation | Deferred |
+
+### Phase 3 — Operations maturity (next)
+
+- True row-level organization tenancy and multiple broker teams with organization-level administrator consoles.
+- Configurable per-org overdue thresholds, escalation paths and emergency handling — still human-reviewed, never auto-approved.
+- Vendor/technician assignment, visit scheduling, repair cost tracking and photo attachments with privacy review.
+- Immutable audit log beyond current event tables, scheduled backups with off-host retention, Postgres migration and structured monitoring.
+- Email/SMS notification providers after the team chooses a vendor and consent wording.
+
+### Phase 4 — Later releases
+
+- Payment gateway and automated commission collection only after legal/commercial decisions.
+- Approved lease and tenant-benefit documents attached per property/organization, with e-signature if required.
+- Property reviews, public API/webhooks, map search, installable/offline mode, language support and accessibility preferences.
+
+### Scope discipline
+
+Payments, invented legal clauses and automated scoring remain outside the product until the team and mentor explicitly expand scope. The legal posture is documented internally, not presented as customer-facing terms.

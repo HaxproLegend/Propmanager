@@ -158,3 +158,26 @@ def test_analytics_is_role_scoped_and_has_chart_data(client):
     assert "leads_by_status" in broker_data["charts"]
     assert broker_data["charts"]["tickets_by_status"]
     assert broker_data["charts"]["commissions_by_month"]
+
+
+def test_decline_reason_is_visible_to_the_renter(client):
+    owner = client
+    renter = auth_app.app.test_client()
+    register(owner, "owner@example.test", "owner")
+    register(renter, "renter@example.test")
+    property_id = post_json(owner, "/api/properties", {
+        "title": "Garden Flats", "address": "12 Park Road, Pune", "monthly_rent": 28000,
+    }).get_json()["property"]["id"]
+    application_id = post_json(renter, "/api/applications", {"property_id": property_id}).get_json()["id"]
+
+    decision = post_json(owner, f"/api/applications/{application_id}/decision", {
+        "status": "Declined", "reason": "Another applicant was a better fit.",
+    })
+    assert decision.status_code == 200
+    assert decision.get_json()["decline_reason"] == "Another applicant was a better fit."
+    row = renter.get("/api/applications").get_json()["applications"][0]
+    assert row["decline_reason"] == "Another applicant was a better fit."
+    history = renter.get(f"/api/applications/{application_id}").get_json()["history"]
+    assert history[-1]["note"] == "Another applicant was a better fit."
+    notification = renter.get("/api/notifications").get_json()["notifications"][0]
+    assert "Another applicant was a better fit." in notification["body"]

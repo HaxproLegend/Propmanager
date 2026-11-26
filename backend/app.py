@@ -226,7 +226,10 @@ def init_db():
         if "unit_id" not in application_columns:
             db.execute("ALTER TABLE applications ADD COLUMN unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL")
         if "decline_reason" not in application_columns:
-            db.execute("ALTER TABLE applications ADD COLUMN decline_reason TEXT NOT NULL DEFAULT ''")
+            # Re-check: another process may have applied this migration already.
+            current_columns = {row[1] for row in db.execute("PRAGMA table_info(applications)")}
+            if "decline_reason" not in current_columns:
+                db.execute("ALTER TABLE applications ADD COLUMN decline_reason TEXT NOT NULL DEFAULT ''")
         db.execute("UPDATE applications SET accepted_at=created_at WHERE status='Accepted' AND accepted_at IS NULL")
 
         # Backfill one unit per declared unit/room. Existing records are preserved.
@@ -1254,6 +1257,7 @@ def decide_application(application_id):
     if error: return error
     body = json_body()
     status = str(body.get("status", ""))
+    reason = str(body.get("reason", "")).strip()[:500]
     if status not in ("Accepted", "Declined"): return api_error("Choose accept or decline.", 400)
     with connect() as db:
         now = int(time.time())
@@ -1282,21 +1286,24 @@ def decide_application(application_id):
                                   (unit_id, application["property_id"])).fetchone()
                 if not unit: return api_error("The selected unit is no longer available.", 409)
             db.execute("UPDATE units SET status='Rented' WHERE id=?", (unit_id,))
-        db.execute("UPDATE applications SET status=?,accepted_at=?,unit_id=? WHERE id=?",
-                   (status, now if status == "Accepted" else None, unit_id, application_id))
+        db.execute("UPDATE applications SET status=?,accepted_at=?,unit_id=?,decline_reason=? WHERE id=?",
+                   (status, now if status == "Accepted" else None, unit_id,
+                    reason if status == "Declined" else "", application_id))
         if status == "Accepted":
             db.execute("UPDATE properties SET status='Rented' WHERE id=?", (application["property_id"],))
-        record_application_event(db, application_id, user["id"], "decision", "Pending", status, "", now)
+        record_application_event(db, application_id, user["id"], "decision", "Pending", status,
+                                 reason if status == "Declined" else "", now)
         title = "Application accepted" if status == "Accepted" else "Application declined"
+        detail = f" Your reason: {reason}" if status == "Declined" and reason else ""
         notify(db, application["renter_id"], "decision", title,
-               f"Your application for {application['property_title']} was {status.lower()}.",
+               f"Your application for {application['property_title']} was {status.lower()}.{detail}",
                f"/applications/{application_id}", now)
         for broker in db.execute("SELECT id FROM users WHERE role='broker'").fetchall():
             notify(db, broker["id"], "application", f"Application {status.lower()}",
                    f"{application['property_title']} · {application['renter_id']}", f"/applications/{application_id}", now)
     if status == "Accepted":
         generate_commission_cycles(datetime.now(timezone.utc).strftime("%Y-%m"), application_id)
-    return jsonify(status=status, unit_id=unit_id)
+    return jsonify(status=status, unit_id=unit_id, decline_reason=reason if status == "Declined" else "")
 
 
 def generate_commission_cycles(billing_period, application_id=None):

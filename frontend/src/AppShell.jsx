@@ -79,6 +79,7 @@ export default function AppShell({ user, request, page, setPage, onSignOut, onUp
         {items.map((item) => <button key={item.key} className={page === item.key ? 'active' : ''} onClick={() => go(item.key)}><span className="nav-icon">{item.icon}</span>{item.label}{item.key === 'issues' && unread > 0 && <span className="nav-dot" />}</button>)}
       </nav>
       <div className="side-foot">
+        <button className={page === 'policy' ? 'active' : ''} onClick={() => go('policy')}><span className="nav-icon">≡</span>How we work</button>
         <button className={page === 'profile' ? 'active' : ''} onClick={() => go('profile')}><span className="nav-icon">☺</span>Your profile</button>
         <button onClick={onSignOut}><span className="nav-icon">↗</span>Sign out</button>
       </div>

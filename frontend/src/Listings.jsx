@@ -11,6 +11,7 @@ export default function ListingExplorer({ properties, applications, request, act
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [unitId, setUnitId] = useState('');
+  const [ack, setAck] = useState(false);
 
   useEffect(() => { setResults(properties); }, [properties]);
 
@@ -49,6 +50,7 @@ export default function ListingExplorer({ properties, applications, request, act
 
   return <section className="dash-section listing-explorer">
     <SectionTitle title={ownerMode ? 'My listings' : 'Homes available'} sub={ownerMode ? 'Every property and its unit inventory in one place.' : 'Browse available homes, rooms and offices.'} />
+    {!ownerMode && <label className="ack-row"><input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} /> I understand commission entries are ledger records only — PropManager does not collect money.</label>}
     <form className="filter-bar" onSubmit={search}>
       <input aria-label="Search listings" placeholder="Search by name or keyword" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
       <input aria-label="Filter by location" placeholder="Area or city" value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })} />
@@ -64,7 +66,7 @@ export default function ListingExplorer({ properties, applications, request, act
         <button className="listing-image-button" onClick={() => openDetail(property)}><ListingImage src={property.image_url} alt={property.title}>{property.property_type}</ListingImage><span className="image-index">{property.property_type} · {property.unit_count} units</span></button>
         <div className="listing-content"><div className="listing-rent">{money(property.monthly_rent)} <small>/ month</small></div><h3>{property.title}</h3><p>{property.address}</p><p className="listing-desc">{property.description || 'A rental listing managed through PropManager.'}</p>
           <div className="listing-actions"><button className="button button-light" onClick={() => openDetail(property)}>View details →</button>
-            {!ownerMode && <button className="button button-dark" disabled={busy || appliedIds.has(property.id)} onClick={() => act(() => request('/api/applications', { method: 'POST', body: JSON.stringify({ property_id: property.id }) }), `Application sent for ${property.title}.`)}>{appliedIds.has(property.id) ? 'Applied' : 'Apply'}</button>}
+            {!ownerMode && <button className="button button-dark" disabled={busy || !ack || appliedIds.has(property.id)} onClick={() => act(() => request('/api/applications', { method: 'POST', body: JSON.stringify({ property_id: property.id }) }), `Application sent for ${property.title}.`)}>{appliedIds.has(property.id) ? 'Applied' : ack ? 'Apply' : 'Acknowledge to apply'}</button>}
             {ownerMode && <Badge value={property.status} />}
           </div>
         </div>
@@ -78,7 +80,7 @@ export default function ListingExplorer({ properties, applications, request, act
         <p className="detail-description">{selected.description || 'Managed through PropManager with broker coordination.'}</p>
         <SectionTitle title="Units and rooms" sub={`${units.filter((unit) => unit.status === 'Available').length} of ${units.length} available`} />
         {units.length ? <div className="unit-list">{units.map((unit) => <div className="unit-row" key={unit.id}><strong>{unit.unit_label}</strong><small>{money(unit.monthly_rent)} / month</small><Badge value={unit.status} /></div>)}</div> : <Empty text="Unit details will appear here." />}
-        {!ownerMode && <div className="drawer-cta"><label className="form-field">Apply for a unit<select value={unitId} onChange={(e) => setUnitId(e.target.value)}><option value="">First available unit</option>{units.filter((unit) => unit.status === 'Available').map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_label}</option>)}</select></label><button className="button button-dark" disabled={busy || appliedIds.has(selected.id)} onClick={() => apply(selected)}>{appliedIds.has(selected.id) ? 'Already applied' : 'Apply through broker →'}</button></div>}
+        {!ownerMode && <div className="drawer-cta"><label className="form-field">Apply for a unit<select value={unitId} onChange={(e) => setUnitId(e.target.value)}><option value="">First available unit</option>{units.filter((unit) => unit.status === 'Available').map((unit) => <option value={unit.id} key={unit.id}>{unit.unit_label}</option>)}</select></label><button className="button button-dark" disabled={busy || !ack || appliedIds.has(selected.id)} onClick={() => apply(selected)}>{appliedIds.has(selected.id) ? 'Already applied' : ack ? 'Apply through broker →' : 'Acknowledge to apply'}</button></div>}
       </>}
     </Drawer>
   </section>;

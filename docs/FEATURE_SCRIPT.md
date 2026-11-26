@@ -59,7 +59,7 @@ I can switch to the Board view to see Pending, In Progress, Resolved and Skipped
 
 ## Security and closing — 30 seconds
 
-"Role checks are enforced in the Flask APIs, not only in the interface. Passwords use Argon2id hashing, sessions are server-checked opaque tokens, cookies are HttpOnly with SameSite, CSRF tokens protect changes, and failed sign-ins are throttled. The app uses HTTPS-ready secure cookies by default; database encryption at rest and hosted identity features are still future work."
+"The plain-language 'How we handle issues & applications' page explains the posture: flexible where people need judgement, firm where they need clarity. Owners can add a reason when declining, renters acknowledge that commission entries are ledger records, and no legal clause is invented in the app. Role checks are enforced in the Flask APIs, not only in the interface. Passwords use Argon2id hashing, sessions are server-checked opaque tokens, cookies are HttpOnly with SameSite, CSRF tokens protect changes, and failed sign-ins are throttled. The app uses HTTPS-ready secure cookies by default; database encryption at rest and hosted identity features are still future work."
 
 ## Feature scope at a glance
 

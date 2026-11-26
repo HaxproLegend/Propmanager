@@ -38,7 +38,7 @@ Passwords are Argon2id hashes, not reversibly encrypted values. Session IDs are 
 | `GET` | `/applications` | Signed in | Own applications for renters, own-property applications for owners, all applications for brokers. |
 | `GET` | `/applications/{id}` | Signed in | Application detail with unit label and a chronological status-history timeline. |
 | `POST` | `/applications` | Renter | Apply to an available listing. Required: `property_id`; optional: `message` and `unit_id`. Duplicate applications are rejected. A renter may have accepted applications for multiple properties. |
-| `POST` | `/applications/{id}/decision` | Listing owner | Set a pending application to `Accepted` or `Declined`. Accepting assigns an available unit, records the decision, notifies the renter and brokers, and creates the first month's two charges. Several renters can be accepted for a multi-unit listing. |
+| `POST` | `/applications/{id}/decision` | Listing owner | Set a pending application to `Accepted` or `Declined`. Optional `reason` on a decline is stored as `decline_reason` and shown in the timeline and notification. Accepting assigns an available unit, records the decision, notifies the renter and brokers, and creates the first month's two charges. Several renters can be accepted for a multi-unit listing. |
 | `POST` | `/applications/{id}/end` | Listing owner or broker | End the active rental; future monthly charges stop and the listing becomes available again. |
 | `GET` | `/dashboard` | Signed in | Role-specific dashboard counts and `unread_notifications`. The broker summary includes properties, active rentals, pending applications, Pending/In Progress/Resolved/Skipped ticket counts, and the pending commission total. |
 
