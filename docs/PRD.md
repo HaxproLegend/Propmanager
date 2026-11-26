@@ -253,13 +253,16 @@ This section is a living status record, not a change to the requirements above. 
 | Notifications by email/SMS/WhatsApp | Deferred; in-app only |
 | Payments, legal documents, organization-level isolation | Deferred |
 
-### Phase 3 — Operations maturity (next)
+### Phase 3 — Operations maturity (implemented in-app; infrastructure work remains)
 
-- True row-level organization tenancy and multiple broker teams with organization-level administrator consoles.
-- Configurable per-org overdue thresholds, escalation paths and emergency handling — still human-reviewed, never auto-approved.
-- Vendor/technician assignment, visit scheduling, repair cost tracking and photo attachments with privacy review.
-- Immutable audit log beyond current event tables, scheduled backups with off-host retention, Postgres migration and structured monitoring.
-- Email/SMS notification providers after the team chooses a vendor and consent wording.
+- **Scope and teams:** organization-scoped reads for linked properties, applications, tickets and commissions, while personal records and global broker visibility remain. Multiple brokers/technicians can belong to one organization and be assigned to issues.
+- **Advisory SLAs:** per-org `overdue_hours` and `escalation_hours` produce `is_overdue` / `is_escalated` flags in the queue. They never change status, delay or reject anything. Emergency is a manual flag.
+- **Field operations:** vendor directory, assignee and vendor assignment, visit scheduling, repair cost in paise, and photo URL metadata with an explicit note that binary storage and privacy review are still required.
+- **Audit:** append-only `audit_log` with a member-readable `GET /api/orgs/{id}/audit`.
+- **Backups and health:** `backup --retention-days N`, `GET /api/health/ready`, and an operational runbook in `docs/OPERATIONS.md`.
+- **Database mode:** SQLite remains the local/test default; a Postgres adapter via `DATABASE_URL`/`psycopg` is implemented for hosted Neon-style deployments, with SQL translation and SSL enforcement. Alembic-managed schema versions and a live data cutover remain operator work.
+- **Security headers:** API responses send `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` and a restrictive `Content-Security-Policy`; Vercel sends matching headers for the static app.
+- **Still operator work:** scheduled off-host backups, Alembic versions/data cutover, structured monitoring/alerts, and email/SMS providers pending vendor and consent decisions.
 
 ### Phase 4 — Later releases
 

@@ -121,6 +121,8 @@ export default function Dashboard({ user, request, page, setPage, notify, onChan
       {ticketDetail && <>
         <div className="detail-meta"><Badge value={ticketDetail.ticket.priority} /><Badge value={ticketDetail.ticket.status} /><span>{dateTime(ticketDetail.ticket.created_at)}</span></div>
         <p className="detail-description">{ticketDetail.ticket.description}</p>
+        <div className="ops-summary"><span>Assignee: {ticketDetail.ticket.assignee_name || 'Unassigned'}</span><span>Vendor: {ticketDetail.ticket.vendor_name || 'None'}</span><span>Visit: {ticketDetail.ticket.scheduled_at ? dateTime(ticketDetail.ticket.scheduled_at) : 'Not scheduled'}</span><span>Repair cost: {money(ticketDetail.ticket.repair_cost_paise / 100)}</span>{ticketDetail.ticket.emergency ? <Badge value="Emergency" /> : null}</div>
+        {ticketDetail.photos.length > 0 && <div className="photo-list"><strong>Attached photos</strong>{ticketDetail.photos.map((photo) => <a key={photo.id} href={photo.url} target="_blank" rel="noreferrer">{photo.caption || photo.url}</a>)}</div>}
         {ticketDetail.ticket.manager_note && <p className="manager-note">Broker note: {ticketDetail.ticket.manager_note}</p>}
         <SectionTitle title="Status history" sub="Every change is visible to the reporter." />
         <Timeline events={ticketDetail.history} describe={(event) => event.event_type === 'created' ? 'Issue submitted' : event.event_type === 'note_updated' ? 'Broker note updated' : `Status changed to ${event.new_status || 'Pending'}`} />

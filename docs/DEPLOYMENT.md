@@ -57,6 +57,22 @@ Deployment checklist:
   The endpoint `POST /api/commissions/generate` is broker-only and idempotent, but a scheduler makes catch-up reliable. `GET /api/commissions` also catches up the current month.
 - Do not expose the API host's other pages to end users; `/api/*` through the Vercel rewrite is the supported path.
 
+## Hosted Postgres (Neon)
+
+The app supports two database modes:
+
+- **Local demo:** no `DATABASE_URL`; uses the SQLite file at `DATABASE_PATH`. This is what the tests and `seed-demo` use.
+- **Hosted:** set `DATABASE_URL` to a Postgres connection string (for example a Neon pooled URL). The app then uses `psycopg` instead of SQLite and forces `sslmode=require` when the URL does not already specify it.
+
+Deployment notes for Neon:
+
+1. Install `backend/requirements.txt` — it now includes `psycopg[binary]`.
+2. Set `DATABASE_URL` in the Flask host environment. Do **not** paste credentials into chat or commit them.
+3. Keep `COOKIE_SECURE=true` and serve everything over HTTPS. Vercel should rewrite `/api/*` to this host via `API_ORIGIN` so session cookies stay same-origin.
+4. On first boot the app creates the schema with Postgres-compatible DDL. Migrating existing SQLite rows is **not** automatic — use a one-time export/import or the plan in `docs/OPERATIONS.md`.
+5. Use Neon's pooled connection string. The app opens a connection per request rather than holding one globally, which suits serverless Postgres cold starts.
+6. SQLite `backup` and `restore` CLI commands are disabled in Postgres mode. Use Neon point-in-time recovery or `pg_dump`/`pg_restore`, and keep taking scheduled off-host copies.
+
 ## Demo data
 
 For presentations, seed a **local** database with sample users, listings, units, rentals, issues, notifications, commission entries and a sample organization with team members, terms and leads:

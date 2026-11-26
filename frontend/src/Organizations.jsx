@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Badge, Empty, SectionTitle, Skeleton, date, money, statusClass } from './ui.jsx';
+import { Badge, Empty, SectionTitle, Skeleton, date, dateTime, money } from './ui.jsx';
 
 const ORG_ROLES = ['org_admin', 'manager', 'broker', 'accountant', 'technician'];
 const LEAD_STATUS = ['New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
@@ -14,6 +14,8 @@ export default function Organizations({ user, request, act, busy, notify, proper
   const [term, setTerm] = useState({ party: 'owner', rate_basis_points: 1000, effective_from: '' });
   const [lead, setLead] = useState({ name: '', email: '', phone: '', source: 'Manual', notes: '' });
   const [assignId, setAssignId] = useState('');
+  const [settings, setSettings] = useState({ overdue_hours: 48, escalation_hours: 72 });
+  const [vendor, setVendor] = useState({ name: '', service_type: 'General', phone: '', email: '' });
 
   const loadOrgs = useCallback(async () => {
     setLoading(true);
@@ -28,16 +30,21 @@ export default function Organizations({ user, request, act, busy, notify, proper
   const loadDetail = useCallback(async () => {
     if (!selectedId) { setData(null); return; }
     try {
-      const [detail, summary, members, invitations, terms, leads] = await Promise.all([
+      const [detail, summary, members, invitations, terms, leads, settings, vendors, audit] = await Promise.all([
         request(`/api/orgs/${selectedId}`),
         request(`/api/orgs/${selectedId}/dashboard`),
         request(`/api/orgs/${selectedId}/members`),
         request(`/api/orgs/${selectedId}/invitations`),
         request(`/api/orgs/${selectedId}/commission-terms`),
         request(`/api/orgs/${selectedId}/leads`),
+        request(`/api/orgs/${selectedId}/settings`),
+        request(`/api/orgs/${selectedId}/vendors`),
+        request(`/api/orgs/${selectedId}/audit`),
       ]);
       setData({ detail: detail.organization, summary: summary.summary, members: members.members,
-                invitations: invitations.invitations, terms: terms.terms, leads: leads.leads });
+                invitations: invitations.invitations, terms: terms.terms, leads: leads.leads,
+                settings: settings.settings, vendors: vendors.vendors, audit: audit.events });
+      setSettings(settings.settings);
     } catch (err) { notify(err.message, 'error'); }
   }, [selectedId, request, notify]);
 
@@ -102,6 +109,30 @@ export default function Organizations({ user, request, act, busy, notify, proper
           <button className="button button-dark" disabled={busy}>Add lead</button>
         </form>
         {data.leads.length ? <div className="list-table">{data.leads.map((row) => <div className="data-row application-row" key={row.id}><div><strong>{row.name}</strong><small>{row.email}{row.phone ? ` · ${row.phone}` : ''} · {row.source} · {date(row.created_at)}</small>{row.notes && <p>{row.notes}</p>}</div><select aria-label="Lead status" value={row.status} disabled={busy} onChange={(e) => mutate(() => request(`/api/orgs/${selectedId}/leads/${row.id}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.value, notes: row.notes }) }), 'Lead updated.')}>{LEAD_STATUS.map((status) => <option key={status}>{status}</option>)}</select></div>)}</div> : <Empty text="No leads yet." />}
+      </section>
+
+      <div className="dashboard-columns">
+        <section className="dash-section"><SectionTitle title="Service thresholds" sub="Advisory only — nothing changes status automatically." />
+          <form className="inline-form" onSubmit={(event) => { event.preventDefault(); mutate(() => request(`/api/orgs/${selectedId}/settings`, { method: 'PATCH', body: JSON.stringify(settings) }), 'Thresholds saved.'); }}>
+            <label className="form-field">Mark overdue after<input aria-label="Overdue hours" type="number" min="1" max="720" required value={settings.overdue_hours} onChange={(e) => setSettings({ ...settings, overdue_hours: Number(e.target.value) })} /><small>hours</small></label>
+            <label className="form-field">Flag for escalation after<input aria-label="Escalation hours" type="number" min="1" max="2160" required value={settings.escalation_hours} onChange={(e) => setSettings({ ...settings, escalation_hours: Number(e.target.value) })} /><small>hours</small></label>
+            <button className="button button-dark" disabled={busy || !canManage}>Save thresholds</button>
+          </form>
+        </section>
+
+        <section className="dash-section"><SectionTitle title="Vendors and technicians" sub="Assign external help to issues without leaving PropManager." />
+          {data.vendors.length ? <div className="list-table">{data.vendors.map((row) => <div className="data-row" key={row.id}><div><strong>{row.name}</strong><small>{row.service_type}{row.phone ? ` · ${row.phone}` : ''}</small></div></div>)}</div> : <Empty text="No vendors added yet." />}
+          {canManage && <form className="inline-form" onSubmit={(event) => { event.preventDefault(); mutate(() => request(`/api/orgs/${selectedId}/vendors`, { method: 'POST', body: JSON.stringify(vendor) }), 'Vendor added.'); setVendor({ name: '', service_type: 'General', phone: '', email: '' }); }}>
+            <input aria-label="Vendor name" required minLength="2" placeholder="Vendor name" value={vendor.name} onChange={(e) => setVendor({ ...vendor, name: e.target.value })} />
+            <input aria-label="Service type" placeholder="Service" value={vendor.service_type} onChange={(e) => setVendor({ ...vendor, service_type: e.target.value })} />
+            <input aria-label="Vendor phone" placeholder="Phone" value={vendor.phone} onChange={(e) => setVendor({ ...vendor, phone: e.target.value })} />
+            <button className="button button-dark" disabled={busy}>Add vendor</button>
+          </form>}
+        </section>
+      </div>
+
+      <section className="dash-section"><SectionTitle title="Audit log" sub="Read-only record of important changes. Events cannot be edited or deleted in the app." />
+        {data.audit.length ? <div className="list-table">{data.audit.map((event) => <div className="data-row" key={event.id}><div><strong>{event.action}</strong><small>{event.entity_type} #{event.entity_id} · {event.details}</small></div><small>{event.actor_name || 'System'} · {dateTime(event.created_at)}</small></div>)}</div> : <Empty text="No audited changes yet." />}
       </section>
     </>}
   </div>;

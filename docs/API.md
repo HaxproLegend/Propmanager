@@ -42,6 +42,25 @@ Passwords are Argon2id hashes, not reversibly encrypted values. Session IDs are 
 | `POST` | `/applications/{id}/end` | Listing owner or broker | End the active rental; future monthly charges stop and the listing becomes available again. |
 | `GET` | `/dashboard` | Signed in | Role-specific dashboard counts and `unread_notifications`. The broker summary includes properties, active rentals, pending applications, Pending/In Progress/Resolved/Skipped ticket counts, and the pending commission total. |
 
+## Operations (Phase 3)
+
+Organization-role checks apply as described above. Global brokers can manage every organization; other users must be a member with the required organization role.
+
+| Method | Endpoint | Org role | Description |
+| --- | --- | --- | --- |
+| `GET` | `/orgs/{id}/settings` | Member | Advisory `overdue_hours` and `escalation_hours`. Defaults: 48 and 72. |
+| `PATCH` | `/orgs/{id}/settings` | `org_admin`, broker | Set thresholds between 1 hour and 90 days; escalation must be at least the overdue value. |
+| `GET` | `/orgs/{id}/assignees` | Member | Organization members who can be assigned to issues. |
+| `GET` | `/orgs/{id}/vendors` | Member | Vendor directory for the organization. |
+| `POST` | `/orgs/{id}/vendors` | `org_admin`, broker, manager | Add a vendor. Required: `name`; optional: `service_type`, `phone`, `email`. |
+| `PATCH` | `/orgs/{id}/vendors/{vendor_id}` | `org_admin`, broker | Update a vendor. |
+| `PATCH` | `/tickets/{id}/operations` | Broker, or `org_admin` of the linked organization | Set `assignee_id`, `vendor_id`, `scheduled_at` (epoch seconds), `repair_cost_paise` and `emergency`. Writes an `operation` event. |
+| `POST` | `/tickets/{id}/photos` | Renter, owner or broker | Attach an `http(s)` URL and caption metadata. No binary upload. |
+| `GET` | `/orgs/{id}/audit` | Member | Read-only audit log, newest first, `limit` 1–200. |
+| `GET` | `/health/ready` | Public | Liveness plus database connectivity check. |
+
+Ticket list and detail responses include `sla_due_at`, `escalation_at`, `is_overdue` and `is_escalated`. These flags are advisory; they never change status or trigger automatic decisions.
+
 ## Analytics
 
 | Method | Endpoint | Auth | Description |
